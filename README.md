@@ -167,8 +167,8 @@ Signal Match Score:
 
 **ModelAudit** — *Because transparency is not optional.*
 
-This project is maintained at github dot com slash Kayra-ML slash ModelAudit
-Author profile: github dot com slash Kayra-ML
+This project is maintained at github dot com slash Burak-ML slash ModelAudit
+Author profile: github dot com slash Burak-ML
 
 </div>
 
