@@ -172,3 +172,9 @@ Author profile: github dot com slash Burak-ML
 
 </div>
 
+
+---
+
+## License
+
+MIT. See [LICENSE](LICENSE).
