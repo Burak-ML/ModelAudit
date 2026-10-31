@@ -1,179 +1,84 @@
 <div align="center">
 
-<img src="banner.png" alt="Model Audit Banner" width="100%"/>
+<img src="banner.png" alt="ModelAudit banner" width="100%"/>
 
-<br/><br/>
+# ModelAudit
 
-# Model Audit
+**Exploratory research on identifying LLM behavior behind APIs and branded wrappers.**
 
-### Exploratory LLM Behavior & Attribution Research
-
-*Documenting signals, uncertainty and reproducible hypotheses.*
-
----
+[![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![Status](https://img.shields.io/badge/status-exploratory-orange)
 
 </div>
 
-## What Is This?
+## Overview
 
-**ModelAudit** is an exploratory research project for comparing observable LLM behavior, documenting attribution hypotheses and studying how API wrappers or personas can affect model identification.
+Many AI products are a base model behind a different name, a system prompt or a router. From the outside it can be hard to tell which model is really answering. ModelAudit collects a methodology and a set of experimental prompts for forming **hypotheses** about that, and for writing down what would disprove them.
 
-Model attribution from prompts, response styles and API behavior is inherently uncertain. **No prompt or behavioral fingerprint alone can establish a model's true identity.** Use these techniques to form hypotheses, not to certify a provider or model version.
+> **No prompt or behavioral fingerprint can establish a model's true identity.** A model can be fine-tuned to claim any name, and a proxy can imitate tone. Treat everything here as evidence for a ranked hypothesis, not as certification of a provider or model version.
 
-It operates on two fronts:
+## Why it matters
 
-| Module | Purpose |
-|--------|---------|
-| 🔬 [`_IDENTITY-FINGERPRINT.md`](_IDENTITY-FINGERPRINT.md) | Explore potential model-family signals — context window, tokenizer artifacts, error patterns, latency fingerprints, behavioral biases |
-| 💬 [`_IDENTITY-TRUTH-PROMPTS.md`](_IDENTITY-TRUTH-PROMPTS.md) | Experimental prompts for testing model self-description and persona consistency (responses are not reliable identity evidence) |
+- **Security and audit.** You cannot assess a system whose model you cannot identify.
+- **Compliance.** Some regulations and contracts depend on knowing which AI is in use.
+- **Trust.** Undisclosed model swaps undermine informed consent.
+- **Research validity.** Benchmark results mean little when the model behind the endpoint is unknown.
 
----
+## What is in this repository
 
-## The Core Problem
+| Document | Purpose |
+|----------|---------|
+| [`_IDENTITY-FINGERPRINT.md`](_IDENTITY-FINGERPRINT.md) | A layered method for comparing observable behavior: claim versus leak, format dialect, one-token behavior, infrastructure signals, capability and refusal shape, scoring sheet and runbooks |
+| [`_IDENTITY-TRUTH-PROMPTS.md`](_IDENTITY-TRUTH-PROMPTS.md) | Experimental prompts that ask a model to describe its provider, version, knowledge cutoff and any active wrapper. Answers are conversation, not evidence |
 
-Modern AI deployments frequently involve **model wrapping** — where a base model (e.g., GPT-4, Claude 3, Gemini Ultra) is branded, fine-tuned, and presented under a completely different identity:
+## Method in brief
 
-```
-User thinks they're talking to:  "Aria from TechCorp"
-Reality:                          Claude 3.5 Sonnet with a system prompt
-```
+The fingerprint document works through layers, cheapest first:
 
-This creates critical risks:
+| Layer | Looks at | Reliability |
+|-------|----------|-------------|
+| 0. Intake | What the product claims, API fields, available metadata | Context only |
+| 1. Claim vs leak | Direct and indirect self-description, knowledge-cutoff consistency | Low: a persona is cheap to fake |
+| 2. Format dialect | Formatting habits, refusal wording, tool-call style | Medium |
+| 3. One-token battery | Repeated one-token prompts compared across targets | Medium |
+| 4. Infrastructure (API only) | Token counts on fixed payloads, boundary errors, `finish_reason` values, headers | Strongest |
+| 5. Capability and refusal shape | Model family traits rather than exact versions | Medium |
+| 6. Operator system | Probing a wrapper's system prompt when only a chat UI is available | Low |
 
-- ⚠️ **Security** — You can't audit what you can't identify
-- ⚠️ **Compliance** — Regulatory frameworks require knowing what AI you're using
-- ⚠️ **Trust** — Hidden model swaps undermine informed consent
-- ⚠️ **Research Integrity** — Benchmarks become meaningless if the model is unknown
+Findings are written in a fixed vocabulary so claims and inferences stay separate:
 
----
+| Verdict | Meaning |
+|---------|---------|
+| **CLAIM** | What the product, model field or self-description says |
+| **STACK** | Provider inferred from infrastructure (tokenizer, errors, `finish_reason`, template offset) |
+| **FAMILY** | Behavioral prior (one-token battery, refusal shape, tool dialect) |
+| **WRAPPER** | An extra system prompt, router or guard in front of the model |
+| **CONTRADICTION** | The claim disagrees with the stack or family evidence, or the answers are self-inconsistent |
 
-## Module 1: Identity Forensics
+## Example signals
 
-→ Full methodology in [`_IDENTITY-FINGERPRINT.md`](_IDENTITY-FINGERPRINT.md)
+These are well-known, provider-specific details used as hints. APIs change and can be imitated, so none of them is proof.
 
-An exploratory, multi-signal approach to compare an LLM's observable behavior **without treating verbal self-disclosure as verification**.
+| Observation | Hypothesis |
+|-------------|------------|
+| Anthropic-style typed error objects | Served through Anthropic's API |
+| `system_fingerprint` and OpenAI-style `finish_reason` values | OpenAI-compatible serving |
+| `reasoning_content` field in the response | A reasoning-model API of the DeepSeek family |
+| Tokenizer behavior of one provider, persona of another | Reseller or wrapper |
+| High difference between response halves across requests | Rotating aggregator behind one endpoint |
 
-### Signal Categories
+The fingerprint document contains a longer, still-tentative cheat sheet.
 
-```
-┌─────────────────────────────────────────────────────┐
-│                  FORENSIC SIGNALS                   │
-├──────────────────┬──────────────────────────────────┤
-│ 🧩 Structural    │ Context window limits             │
-│                  │ Token boundary behavior           │
-│                  │ Max output constraints            │
-├──────────────────┼──────────────────────────────────┤
-│ 🔤 Linguistic    │ Default phrasing patterns         │
-│                  │ Refusal message fingerprints      │
-│                  │ Formatting preferences            │
-├──────────────────┼──────────────────────────────────┤
-│ 📅 Temporal      │ Knowledge cutoff probing          │
-│                  │ Training data boundary tests      │
-├──────────────────┼──────────────────────────────────┤
-│ ⚙️ Behavioral    │ RLHF alignment signatures         │
-│                  │ Chain-of-thought style            │
-│                  │ Tool use patterns                 │
-├──────────────────┼──────────────────────────────────┤
-│ 🚨 Error         │ Error code formats                │
-│                  │ Hallucination patterns            │
-│                  │ Edge case responses               │
-└──────────────────┴──────────────────────────────────┘
-```
+## Limitations
 
-### Forensic Methodology
+- Black-box text never gives cryptographic proof, only a ranked hypothesis plus what would falsify it.
+- A model trained to say "I am X" will say it, so self-description is weak evidence.
+- Confidence figures in the documents are illustrative labels, not calibrated probabilities, because there is no independently verified ground truth.
+- Provider behavior changes over time. Re-run the checks instead of trusting old results.
 
-1. **Structural Probing** — Test context limits, token counts, output caps
-2. **Behavioral Fingerprinting** — Elicit characteristic response patterns unique to each lab
-3. **Temporal Triangulation** — Find the exact knowledge cutoff date
-4. **Error Signature Analysis** — Identify lab-specific error handling quirks
-5. **Cross-Signal Correlation** — Combine signals for high-confidence identification
+## Responsible use
 
----
-
-## Module 2: Identity Truth Prompts
-
-→ Full prompt card library in [`_IDENTITY-TRUTH-PROMPTS.md`](_IDENTITY-TRUTH-PROMPTS.md)
-
-A curated set of experimental prompts for checking how model self-descriptions change under different personas. Self-reported identity is not independently verifiable through prompting alone.
-
-### What We're Observing
-
-```
-┌─────────────────────────────────────────────────────┐
-│                  PROMPT TARGETS                     │
-├──────────────────┬──────────────────────────────────┤
-│ 🏭 Lab           │ Who built the underlying model?   │
-│                  │ (OpenAI / Anthropic / Google...)  │
-├──────────────────┼──────────────────────────────────┤
-│ 📦 SKU           │ Which specific version/variant?   │
-│                  │ (GPT-4o / Claude 3.5 / Gemini...)  │
-├──────────────────┼──────────────────────────────────┤
-│ 📅 Cutoff        │ What is the training data cutoff? │
-│                  │ (Exact date triangulation)        │
-├──────────────────┼──────────────────────────────────┤
-│ 🎭 Costume       │ What persona/wrapper is active?   │
-│                  │ (Detecting active system prompts) │
-└──────────────────┴──────────────────────────────────┘
-```
-
-### Prompt Design Principles
-
-- **Multi-layered** — Each prompt works across multiple bypass strategies simultaneously
-- **Cross-context** — Compares model responses across different prompts and settings
-- **Escalating** — Starts soft, escalates intelligently when the model deflects
-- **Cross-checkable** — Records responses alongside observable API and behavioral signals
-
----
-
-## Identity Confidence Scoring
-
-> The ranges below are illustrative labels, **not calibrated probabilities or validated model-identity confidence**. Without independently verified ground truth, they must not be interpreted as proof.
-
-```
-Signal Match Score:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- 90–100%  ████████████████████  STRONG SIGNAL
- 70–89%   ████████████████░░░░  HIGH CONFIDENCE
- 50–69%   ████████████░░░░░░░░  PROBABLE
- 30–49%   ████████░░░░░░░░░░░░  UNCERTAIN
-  0–29%   ████░░░░░░░░░░░░░░░░  INCONCLUSIVE
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
-
----
-
-## Lab Cheat Sheet (2026 Field)
-
-> These are tentative clues, not reliable identifiers. API formats, provider wrappers and model behavior can change or be imitated.
-
-| If you see… | Hypothesize |
-|-------------|-------------|
-| Exact Anthropic error types + XML tools + constitutional refuse | Anthropic serving |
-| `system_fingerprint`, `finish_reason=stop`, `reasoning` field | OpenAI serving |
-| `prompt_tokens` CJK matches Google tokenizer + grounding | Gemini |
-| Error `1301` / Zhipu usage shape | GLM |
-| Must-think every turn + DashScope errors | Qwen 2.4T-class |
-| `reasoning_content` + cheap API + 中文 | DeepSeek R1/V4 |
-| Long continuation addiction, 月之暗面 leaks | Kimi |
-| xAI eval cadence, weak product-copy refuse | Grok |
-| Llama Guard 400 + ChatML offset | Llama 4 + Guard wrapper |
-| le Chat FR safety + tekken template | Mistral |
-| Tokenizer=GLM, persona=Claude | **reseller costume** |
-| Split-half JSD high | **rotating aggregator** |
-
----
-
-<div align="center">
-
-**ModelAudit** — *Because transparency is not optional.*
-
-This project is maintained at github dot com slash Burak-ML slash ModelAudit
-Author profile: github dot com slash Burak-ML
-
-</div>
-
-
----
+Only test services you are authorized to test, and follow each provider's terms of use. The goal is transparency and auditing, not circumventing safeguards.
 
 ## License
 
